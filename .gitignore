@@ -1,0 +1,22 @@
+# Build results
+bin/
+obj/
+out/
+*.exe
+*.dll
+*.pdb
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Configuration
+appsettings.json
+appsettings.Development.json
+secrets.json
+
+# Others
+*.db

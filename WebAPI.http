@@ -1,0 +1,16 @@
+@WebAPI_HostAddress = http://localhost:5062
+
+GET {{WebAPI_HostAddress}}/api/users
+Accept: application/json
+
+###
+
+GET {{WebAPI_HostAddress}}/api/users/2
+Accept: application/json
+
+###
+
+DELETE {{WebAPI_HostAddress}}/api/users/2
+Accept: application/json
+
+###
