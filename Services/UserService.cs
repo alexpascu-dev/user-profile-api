@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using Dapper;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Contracts;
 using WebAPI.Helper;
@@ -37,7 +38,7 @@ public class UserService : IUserService
                     --language=sql
                 SELECT 
                   u.UserId,
-                  a.UserName AS Username,
+                  a.UserName AS Username, 
                   u.FirstName,
                   u.LastName,
                   a.Email,
@@ -54,6 +55,102 @@ public class UserService : IUserService
                 return users;
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving users");
+            throw;
+        }
+    }
+
+    // GET (ALL users + Search, Pagination, Filter)
+    public async Task<PagedResult<GetUserDto>> GetUsersAsync(PagedUsersQuery query)
+    {
+        try
+        {
+            using (IDbConnection conn = new SqlConnection(_connectionString))
+            {
+                var sortMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    // ["userId"] = "u.UserId",
+                    // ["userName"] = "a.UserName",
+                    // ["firstName"] = "u.FirstName",
+                    // ["lastName"] = "u.LastName",
+                    // ["email"] = "a.Email",
+                    // ["isActive"] = "u.IsActive",
+                    // ["createdDate"] = "u.CreatedDate",
+                    // ["role"] = "r.Name"
+                    
+                    ["userId"] = "UserId",
+                    ["userName"] = "UserName",
+                    ["firstName"] = "FirstName",
+                    ["lastName"] = "LastName",
+                    ["email"] = "Email",
+                    ["isActive"] = "IsActive",
+                    ["createdDate"] = "CreatedDate",
+                    ["role"] = "Role"
+                };
+
+                var sortBy = sortMap.ContainsKey(query.SortBy ?? "") ? sortMap[query.SortBy!] : "CreatedDate";
+                var sortDir = string.Equals(query.SortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+
+                var offset = query.PageIndex * query.PageSize;
+                var p = new DynamicParameters();
+                p.Add("@offset", offset);
+                p.Add("@pageSize", query.PageSize);
+                p.Add("@isActive", query.IsActive);
+                p.Add("@query", string.IsNullOrWhiteSpace(query.Search) ? null : $"%{query.Search!.Trim()}%");
+
+                // Search + Filter (active / inactive)
+                var where = @"
+        WHERE
+            (@query IS NULL OR a.UserName LIKE @query OR a.Email LIKE @query OR u.FirstName LIKE @query OR u.LastName LIKE @query)
+            AND (@isActive IS NULL OR @isActive = u.IsActive)";
+
+                var roleFrom = $@"
+        FROM Users u
+        JOIN AspNetUsers a ON a.Id = u.IdentityUserId
+        JOIN AspNetUserRoles ur ON a.Id = ur.UserId
+        JOIN AspNetRoles r ON ur.RoleId = r.Id
+        {where}";
+
+                var dataSql = $@"
+        ;WITH base AS (
+            SELECT 
+                u.UserId,
+                a.UserName AS Username, 
+                u.FirstName,
+                u.LastName,
+                a.Email,
+                u.IsActive,
+                u.CreatedDate,
+                r.Name AS Role
+            {roleFrom}
+        )
+
+        SELECT * INTO #base FROM base;
+
+        SELECT * FROM #base
+        ORDER BY {sortBy} {sortDir}
+        OFFSET @offset ROWS
+        FETCH NEXT @pageSize ROWS ONLY;
+
+        SELECT COUNT(*) FROM #base;";
+                
+                var multipleResults = await conn.QueryMultipleAsync(dataSql, p);
+                
+                var users = (await multipleResults.ReadAsync<GetUserDto>()).ToList();
+                var totalPages = await multipleResults.ReadFirstAsync<int>();
+
+                return new PagedResult<GetUserDto>
+                {
+                    Items = users,
+                    Total = totalPages,
+                    PageIndex = query.PageIndex,
+                    PageSize = query.PageSize
+                };
+            }
+        }
+
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving users");

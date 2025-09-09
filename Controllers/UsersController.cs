@@ -39,6 +39,24 @@ public class UsersController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+    
+    // GET api/users - SORTED, FILTERED, PAGINATION
+    [Authorize(Roles = Constants.RoleAdmin +  "," + Constants.RoleSupervisor)]
+    [HttpGet("all-users")]
+    [SwaggerOperation(Summary = "Get users (paged/filter/sort)", Tags = new[] { "Users - GET" })]
+
+    public async Task<ActionResult<PagedResult<GetUserDto>>> GetUsersAsync([FromQuery] PagedUsersQuery query)
+    {
+        try
+        {
+            var result = await _userService.GetUsersAsync(query);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 
     //GET (One user by ID)
     [HttpGet("{userId:int}")]

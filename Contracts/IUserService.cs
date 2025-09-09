@@ -7,6 +7,9 @@ public interface IUserService
     // GET (all USERS)
     Task<IEnumerable<GetUserDto>>GetAllUsersAsync();
     
+    // GET (all USERS sorted / filtered)
+    Task<PagedResult<GetUserDto>> GetUsersAsync(PagedUsersQuery query);
+    
     // GET (one USER)
     Task<GetUserDto?> GetUserByIdAsync(int userId);
     
