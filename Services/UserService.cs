@@ -2,7 +2,6 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using Dapper;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Contracts;
 using WebAPI.Helper;
@@ -71,17 +70,8 @@ public class UserService : IUserService
             {
                 var sortMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    // ["userId"] = "u.UserId",
-                    // ["userName"] = "a.UserName",
-                    // ["firstName"] = "u.FirstName",
-                    // ["lastName"] = "u.LastName",
-                    // ["email"] = "a.Email",
-                    // ["isActive"] = "u.IsActive",
-                    // ["createdDate"] = "u.CreatedDate",
-                    // ["role"] = "r.Name"
-                    
                     ["userId"] = "UserId",
-                    ["userName"] = "UserName",
+                    ["userName"] = "Username",
                     ["firstName"] = "FirstName",
                     ["lastName"] = "LastName",
                     ["email"] = "Email",
@@ -93,10 +83,11 @@ public class UserService : IUserService
                 var sortBy = sortMap.ContainsKey(query.SortBy ?? "") ? sortMap[query.SortBy!] : "CreatedDate";
                 var sortDir = string.Equals(query.SortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
 
-                var offset = query.PageIndex * query.PageSize;
                 var p = new DynamicParameters();
+                var pageSize = Math.Clamp(query.PageSize, 1, 100);
+                p.Add("@pageSize", pageSize);
+                var offset = Math.Max(0, query.PageIndex) * pageSize;
                 p.Add("@offset", offset);
-                p.Add("@pageSize", query.PageSize);
                 p.Add("@isActive", query.IsActive);
                 p.Add("@query", string.IsNullOrWhiteSpace(query.Search) ? null : $"%{query.Search!.Trim()}%");
 
@@ -109,8 +100,8 @@ public class UserService : IUserService
                 var roleFrom = $@"
         FROM Users u
         JOIN AspNetUsers a ON a.Id = u.IdentityUserId
-        JOIN AspNetUserRoles ur ON a.Id = ur.UserId
-        JOIN AspNetRoles r ON ur.RoleId = r.Id
+        LEFT JOIN AspNetUserRoles ur ON a.Id = ur.UserId
+        LEFT JOIN AspNetRoles r ON ur.RoleId = r.Id
         {where}";
 
                 var dataSql = $@"
@@ -139,12 +130,12 @@ public class UserService : IUserService
                 var multipleResults = await conn.QueryMultipleAsync(dataSql, p);
                 
                 var users = (await multipleResults.ReadAsync<GetUserDto>()).ToList();
-                var totalPages = await multipleResults.ReadFirstAsync<int>();
+                var totalRows = await multipleResults.ReadFirstAsync<int>();
 
                 return new PagedResult<GetUserDto>
                 {
                     Items = users,
-                    Total = totalPages,
+                    Total = totalRows,
                     PageIndex = query.PageIndex,
                     PageSize = query.PageSize
                 };

@@ -11,8 +11,13 @@ using WebAPI.Helper;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .AddUserSecrets<Program>(optional: true);
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+#if DEBUG
+    .AddUserSecrets<Program>(optional: true) // only in Dev
+#endif
+    .AddEnvironmentVariables();
     
 //CORS
 builder.Services.AddCors(options =>
@@ -32,6 +37,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtTokenProvider, JwtTokenProvider>();
+builder.Services.AddScoped<IPrinterService, PrinterService>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
