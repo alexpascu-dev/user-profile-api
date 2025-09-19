@@ -246,4 +246,38 @@ public class UsersController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+    
+    // GET (users report preview by date range)
+    [Authorize(Roles = Constants.RoleAdmin + "," + Constants.RoleSupervisor)]
+    [HttpGet("report-preview")]
+    [SwaggerOperation(Summary = "Get users report preview", Tags = new[] {"Users - GET"})]
+    public async Task<IActionResult> GetUsersReportPreviewAsync([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var users = await _userService.GetUsersReportPreviewAsync(startDate, endDate);
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+    
+    // GET (export users report)
+    [Authorize(Roles = Constants.RoleAdmin + "," + Constants.RoleSupervisor)]
+    [HttpGet("export-report")]
+    [SwaggerOperation(Summary = "Export users report", Tags = new[] {"Users - GET"})]
+    public async Task<IActionResult> ExportUsersReportAsync([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var (fileBytes, fileName) = await _userService.ExportUsersReportAsync(startDate, endDate);
+            return File(fileBytes, "text/csv", fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

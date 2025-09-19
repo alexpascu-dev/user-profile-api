@@ -36,4 +36,10 @@ public interface IUserService
     
     // CHANGE ROLE
     Task<string> ChangeUserRoleAsync(string username, string newRole);
+    
+    // GET (users report preview by date range)
+    Task<IEnumerable<CsvUserDto>> GetUsersReportPreviewAsync(DateTime startDate, DateTime endDate);
+
+    // GET (export users report)
+    Task<(byte[], string)> ExportUsersReportAsync(DateTime startDate, DateTime endDate);
 }

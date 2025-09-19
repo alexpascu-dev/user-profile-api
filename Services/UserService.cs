@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text;
 using Microsoft.Data.SqlClient;
 using Dapper;
 using Microsoft.AspNetCore.Identity;
@@ -553,6 +554,77 @@ public class UserService : IUserService
             throw;
         }
     }   
+    
+    // GET (users report preview by date range)
+    public async Task<IEnumerable<CsvUserDto>> GetUsersReportPreviewAsync(DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            var csvPath = "/var/tmp/people_200.csv";
+            _logger.LogInformation($"Looking for CSV at: {csvPath}");
+        
+            if (!File.Exists(csvPath))
+            {
+                throw new FileNotFoundException($"CSV file not found at: {csvPath}");
+            }
+            
+            var lines = await File.ReadAllLinesAsync(csvPath);
+        
+            var results = new List<CsvUserDto>();
+        
+            foreach (var line in lines.Skip(1)) // Skip header
+            {
+                var columns = line.Split(',');
+                var recordDate = DateTime.Parse(columns[3]); // data column
+            
+                if (recordDate >= startDate && recordDate <= endDate)
+                {
+                    results.Add(new CsvUserDto
+                    {
+                        email = columns[0],
+                        nume = columns[1],
+                        prenume = columns[2],
+                        data = columns[3]
+                    });
+                }
+            }
+        
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading CSV file");
+            throw;
+        }
+    }
+    
+    // EXPORT USERS REPORT
+// EXPORT USERS REPORT
+    public async Task<(byte[], string)> ExportUsersReportAsync(DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            var users = await GetUsersReportPreviewAsync(startDate, endDate);
+        
+            var fileName = $"users_report_{startDate:yyyy-MM-dd}_to_{endDate:yyyy-MM-dd}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        
+            var csv = new StringBuilder();
+            csv.AppendLine("email,nume,prenume,data");
+        
+            foreach (var user in users)
+            {
+                csv.AppendLine($"{user.email},{user.nume},{user.prenume},{user.data}");
+            }
+        
+            var bytes = Encoding.UTF8.GetBytes(csv.ToString());
+            return (bytes, fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting users report");
+            throw;
+        }
+    }
 }
 
 

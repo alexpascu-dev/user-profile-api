@@ -20,3 +20,5 @@ secrets.json
 
 # Others
 *.db
+
+people_200.csv
